@@ -89,8 +89,9 @@ class CustomBERT(nn.Module):
 
 
 class LitModel(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, lr):
         super().__init__()
+        self.lr = lr
         self.model = CustomBERT()
         self.criterion_class = nn.CrossEntropyLoss()
         self.criterion_scaler = nn.MSELoss()
@@ -133,7 +134,7 @@ class LitModel(pl.LightningModule):
         return loss_class  # + loss_logit
 
     def configure_optimizers(self):
-        optimizer = Adam(self.parameters(), lr=0.1)
+        optimizer = Adam(self.parameters(), lr=self.lr)
         return optimizer
 
 
