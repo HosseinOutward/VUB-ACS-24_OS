@@ -35,7 +35,7 @@ class LogDataset(torch.utils.data.Dataset):
             'Parameter_1_packet_size',
             # 'Parameter_2_packet_size',
         ]
-        self.final_col = ['labels', 'blk_z',] + self.num_col + self.class_col
+        self.final_col = ['labels', 'blk_z', ] + self.num_col + self.class_col
         self._file_col = pd.read_csv(self.file_loc, nrows=1).columns
 
     def __len__(self):
@@ -43,9 +43,8 @@ class LogDataset(torch.utils.data.Dataset):
 
     def read_file(self, idx):
         if self.shared_memory is not None:
-            return pd.DataFrame(self.shared_memory[idx:idx+self.window_length*2], columns=self._file_col)
-        return pd.read_csv(self.file_loc, nrows=self.window_length*2, skiprows=idx + 1, names=self._file_col)
-
+            return pd.DataFrame(self.shared_memory[idx:idx + self.window_length * 2], columns=self._file_col)
+        return pd.read_csv(self.file_loc, nrows=self.window_length * 2, skiprows=idx + 1, names=self._file_col)
 
     def __getitem__(self, idx):
         data = self.read_file(idx)
@@ -61,10 +60,11 @@ class LogDataset(torch.utils.data.Dataset):
 
             temp = data[col].values.astype(float)
             if col == 'completeTime':
-                min_max_perc=[temp.min(), temp.min()+0.1595*len(temp)/1000]
+                min_max_perc = [temp.min(), temp.min() + 0.1595 * len(temp) / 1000]
             elif col == 'Parameter_1_packet_size':
-                min_max_perc=[28408864, 67108864]
-            else: raise
+                min_max_perc = [28408864, 67108864]
+            else:
+                raise
 
             temp = (temp - min_max_perc[0]) / (min_max_perc[1] - min_max_perc[0])
             temp = np.clip(temp, 0, 1)
@@ -79,25 +79,17 @@ class LogDataset(torch.utils.data.Dataset):
 
         labels = data['labels'].values
         names = data['blk_z'].values
-        data = [data[self.class_col].values.astype(int),data[self.num_col].values.astype(float)]
+        data = [data[self.class_col].values.astype(int), data[self.num_col].values.astype(float)]
 
-        temp = np.eye(int(self.window_length))#/10*8))
-        loss_data = (np.array([temp[data[0].T[i].astype(int)]
-                               for i in range(len(self.class_col))]).astype(int).transpose(1,0,2),
-                     np.array([data[1].T[i][:, np.newaxis]
-                               for i in range(len(self.num_col))]).transpose(1,0,2))
-
-        return labels, names, data, loss_data
+        return labels, names, data, (self.class_col, self.num_col)
 
     def collate_fn(self, batch):
-        labels, names, data, loss_data = list(zip(*batch))
+        labels, names, data, col = list(zip(*batch))
         labels = np.array(labels).astype(int)
         names = np.array(names)
         data = list(zip(*data))
-        data = (torch.tensor(np.array(data[0])),torch.tensor(np.array(data[1])))
-        loss_data = list(zip(*loss_data))
-        loss_data = (torch.tensor(np.array(loss_data[0])), torch.tensor(np.array(loss_data[1])))
-        return labels, names, data, loss_data
+        data = (torch.tensor(np.array(data[0])), torch.tensor(np.array(data[1])))
+        return labels, names, data, col
 
 
 def parse_df(df, template_id, df_label):
